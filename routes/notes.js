@@ -2,15 +2,16 @@ const express = require('express');
 const router = express.Router();
 
 const Note = require('../models/notes');
+const fetchUser = require('../middleware/fetchUser');
 
 
 // ROUTE 1: Get all notes
 // GET: /api/notes/fetchallnotes
-router.get('/fetchallnotes', async (req, res) => {
+router.get('/fetchallnotes', fetchUser, async (req, res) => {
 
     try {
 
-        const notes = await Note.find();
+        const notes = await Note.find({ user: req.user.id });
 
         res.json(notes);
 
@@ -26,7 +27,7 @@ router.get('/fetchallnotes', async (req, res) => {
 
 // ROUTE 2: Add a new note
 // POST: /api/notes/addnote
-router.post('/addnote', async (req, res) => {
+router.post('/addnote', fetchUser, async (req, res) => {
 
     try {
 
@@ -35,7 +36,8 @@ router.post('/addnote', async (req, res) => {
         const note = new Note({
             title: title,
             description: description,
-            tag: tag
+            tag: tag,
+            user: req.user.id
         });
 
         const savedNote = await note.save();
@@ -54,7 +56,7 @@ router.post('/addnote', async (req, res) => {
 
 // ROUTE 3: Update an existing note
 // PUT: /api/notes/updatenote/:id
-router.put('/updatenote/:id', async (req, res) => {
+router.put('/updatenote/:id', fetchUser, async (req, res) => {
 
     try {
 
@@ -80,6 +82,10 @@ router.put('/updatenote/:id', async (req, res) => {
             return res.status(404).send("Note not found");
         }
 
+if (note.user.toString() !== req.user.id) {
+    return res.status(401).send("Not Allowed");
+}
+
         note = await Note.findByIdAndUpdate(
             req.params.id,
             { $set: newNote },
@@ -100,7 +106,7 @@ router.put('/updatenote/:id', async (req, res) => {
 
 // ROUTE 4: Delete an existing note
 // DELETE: /api/notes/deletenote/:id
-router.delete('/deletenote/:id', async (req, res) => {
+router.delete('/deletenote/:id', fetchUser, async (req, res) => {
 
     try {
 
@@ -108,6 +114,10 @@ router.delete('/deletenote/:id', async (req, res) => {
 
         if (!note) {
             return res.status(404).send("Note not found");
+        }
+
+        if (note.user.toString() !== req.user.id) {
+            return res.status(401).send("Not Allowed");
         }
 
         note = await Note.findByIdAndDelete(req.params.id);
@@ -125,6 +135,5 @@ router.delete('/deletenote/:id', async (req, res) => {
     }
 
 });
-
 
 module.exports = router;
