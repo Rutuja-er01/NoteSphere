@@ -3,48 +3,51 @@ const router = express.Router();
 const User = require('../models/user');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+
 const JWT_SECRET = "myinotebooksecretkey";
 
-
-// ROUTE 1: Create a user
+// ROUTE 1: Create a new user
 router.post('/createuser', async (req, res) => {
-
     try {
+        const { name, email, password } = req.body;
 
-        // Check whether user already exists
-        let user = await User.findOne({
-            email: req.body.email
-        });
-
-        if (user) {
+        if (!name || !email || !password) {
             return res.status(400).json({
-                error: "Sorry, a user with this email already exists"
+                success: false,
+                error: 'Please enter all required fields.'
             });
         }
 
+        const existingUser = await User.findOne({ email });
 
-        // Generate salt
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                error: 'A user with this email already exists.'
+            });
+        }
+
         const salt = await bcrypt.genSalt(10);
+        const secPass = await bcrypt.hash(password, salt);
 
-
-        // Hash password
-        const secPass = await bcrypt.hash(
-            req.body.password,
-            salt
-        );
-
-
-        // Create user
-        user = await User.create({
-            name: req.body.name,
-            email: req.body.email,
+        const user = await User.create({
+            name,
+            email,
             password: secPass
         });
 
+        const data = {
+            user: {
+                id: user._id
+            }
+        };
 
-        // Send response
-        res.json({
-            message: "User created successfully",
+        const authToken = jwt.sign(data, JWT_SECRET);
+
+        return res.status(201).json({
+            success: true,
+            message: 'Account created successfully!',
+            authToken,
             user: {
                 id: user._id,
                 name: user.name,
@@ -53,30 +56,37 @@ router.post('/createuser', async (req, res) => {
         });
 
     } catch (error) {
+        console.error('Signup error:', error.message);
 
-        console.error(error.message);
-        res.status(500).send("Internal Server Error");
-
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error. Please try again.'
+        });
     }
-
 });
-// ROUTE 2: Login user
+
+
+// ROUTE 2: Login an existing user
 router.post('/login', async (req, res) => {
-
     try {
-
         const { email, password } = req.body;
 
-        // Find user by email
-        let user = await User.findOne({ email });
-
-        if (!user) {
+        if (!email || !password) {
             return res.status(400).json({
-                error: "Please try to login with correct credentials"
+                success: false,
+                error: 'Please enter your email and password.'
             });
         }
 
-        // Compare password
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid email or password.'
+            });
+        }
+
         const passwordCompare = await bcrypt.compare(
             password,
             user.password
@@ -84,24 +94,23 @@ router.post('/login', async (req, res) => {
 
         if (!passwordCompare) {
             return res.status(400).json({
-                error: "Please try to login with correct credentials"
+                success: false,
+                error: 'Invalid email or password.'
             });
         }
 
-        // Create JWT data
         const data = {
             user: {
                 id: user._id
             }
         };
 
-        // Generate JWT token
         const authToken = jwt.sign(data, JWT_SECRET);
 
-        // Send response
-        res.json({
-            message: "Login successful",
-            authToken: authToken,
+        return res.status(200).json({
+            success: true,
+            message: 'Login successful!',
+            authToken,
             user: {
                 id: user._id,
                 name: user.name,
@@ -110,13 +119,13 @@ router.post('/login', async (req, res) => {
         });
 
     } catch (error) {
+        console.error('Login error:', error.message);
 
-        console.error(error.message);
-        res.status(500).send("Internal Server Error");
-
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error. Please try again.'
+        });
     }
-
 });
-
 
 module.exports = router;

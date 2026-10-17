@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const Note = require('../models/notes');
+const Note = require('../models/Notes');
 const fetchUser = require('../middleware/fetchUser');
 
 
