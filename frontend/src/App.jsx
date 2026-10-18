@@ -8,6 +8,7 @@ import Login from './pages/login';
 import Notes from './pages/Notes';
 import AuthState from './context/AuthState';
 
+
 function App() {
   return (
     <AuthState>
